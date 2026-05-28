@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Store Activity Observer</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #f0f2f5;
+    min-height: 100vh;
+    color: #1a1a2e;
+  }
+
+  .header {
+    background: #1a73e8;
+    color: white;
+    padding: 16px 20px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .header h1 { font-size: 18px; font-weight: 600; flex: 1; }
+  .header .subtitle { font-size: 12px; opacity: 0.8; }
+
+  .back-btn {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 22px;
+    cursor: pointer;
+    padding: 4px 8px 4px 0;
+    line-height: 1;
+  }
+
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  /* SELECT SCREEN */
+  .subject-section {
+    background: white;
+    padding: 16px 20px;
+    border-bottom: 1px solid #e8eaed;
+  }
+
+  .subject-section label {
+    display: block;
+    font-size: 13px;
+    color: #666;
+    margin-bottom: 6px;
+  }
+
+  .subject-section input {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1.5px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 15px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .subject-section input:focus { border-color: #1a73e8; }
+
+  .section-label {
+    padding: 16px 20px 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .activity-list { padding: 0 16px 24px; display: flex; flex-direction: column; gap: 10px; }
+
+  .activity-card {
+    background: white;
+    border-radius: 12px;
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    border: 1.5px solid transparent;
+    transition: all 0.15s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
+
+  .activity-card:active { transform: scale(0.98); border-color: #1a73e8; }
+
+  .activity-card .name { font-size: 16px; font-weight: 500; }
+  .activity-card .count { font-size: 13px; color: #999; }
+  .activity-card .arrow { color: #1a73e8; font-size: 18px; }
+
+  /* TIMER SCREEN */
+  .session-info {
+    background: white;
+    padding: 12px 20px;
+    border-bottom: 1px solid #e8eaed;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .session-info .subject-name { font-size: 13px; color: #666; }
+  .session-info .session-count { font-size: 13px; color: #1a73e8; font-weight: 500; }
+
+  .steps-list { padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
+
+  .step-row {
+    background: white;
+    border-radius: 10px;
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border: 1.5px solid #e8eaed;
+    transition: all 0.2s;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  }
+
+  .step-row.active {
+    border-color: #1a73e8;
+    background: #f0f6ff;
+  }
+
+  .step-row.done {
+    border-color: #34a853;
+    background: #f0faf3;
+  }
+
+  .step-info { flex: 1; }
+  .step-name { font-size: 15px; font-weight: 500; }
+  .step-meta { font-size: 12px; color: #999; margin-top: 3px; height: 16px; }
+  .step-meta.timing { color: #1a73e8; font-weight: 500; }
+  .step-meta.logged { color: #34a853; }
+
+  .step-btn {
+    border: none;
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    min-width: 68px;
+    transition: all 0.15s;
+  }
+
+  .step-btn:active { transform: scale(0.96); }
+  .step-btn.start { background: #e8f5e9; color: #2e7d32; }
+  .step-btn.stop { background: #ffebee; color: #c62828; }
+  .step-btn.repeat { background: #e3f2fd; color: #1565c0; font-size: 12px; }
+
+  .done-bar {
+    position: sticky;
+    bottom: 0;
+    padding: 12px 16px;
+    background: #f0f2f5;
+    border-top: 1px solid #e0e0e0;
+  }
+
+  .done-btn {
+    width: 100%;
+    padding: 15px;
+    background: #1a73e8;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .done-btn:disabled { background: #ccc; cursor: default; }
+  .done-btn:not(:disabled):active { background: #1557b0; }
+
+  /* CONFIRM SCREEN */
+  .summary-card {
+    background: white;
+    margin: 16px;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
+
+  .summary-header {
+    background: #f8f9fa;
+    padding: 14px 18px;
+    border-bottom: 1px solid #e8eaed;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .summary-header .title { font-size: 15px; font-weight: 600; }
+  .summary-header .total { font-size: 15px; font-weight: 600; color: #1a73e8; }
+
+  .summary-row {
+    padding: 12px 18px;
+    border-bottom: 1px solid #f0f0f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .summary-row:last-child { border-bottom: none; }
+  .summary-row .sname { font-size: 14px; }
+  .summary-row .socc { font-size: 12px; color: #999; }
+  .summary-row .sdur { font-size: 14px; font-weight: 500; color: #333; }
+
+  .confirm-actions { padding: 0 16px 32px; display: flex; flex-direction: column; gap: 10px; }
+
+  .btn-primary {
+    width: 100%;
+    padding: 15px;
+    background: #1a73e8;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .btn-secondary {
+    width: 100%;
+    padding: 15px;
+    background: white;
+    color: #1a73e8;
+    border: 1.5px solid #1a73e8;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+
+  .btn-export {
+    width: 100%;
+    padding: 15px;
+    background: #34a853;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .step-row.pause-row {
+    border-style: dashed;
+    border-color: #bdbdbd;
+    background: #fafafa;
+  }
+
+  .step-row.pause-row .step-name { color: #888; }
+    text-align: center;
+    padding: 40px 20px;
+    color: #999;
+    font-size: 14px;
+  }
+</style>
+</head>
+<body>
+
+<!-- SCREEN 1: Select Activity -->
+<div id="selectScreen" class="screen active">
+  <div class="header">
+    <div>
+      <h1>Store Activity Observer</h1>
+      <div class="subtitle">Select an activity to begin timing</div>
+    </div>
+  </div>
+  <div class="subject-section">
+    <label>Who are you observing? (optional)</label>
+    <input type="text" id="subjectInput" placeholder="e.g. Staff name or ID">
+  </div>
+  <div class="section-label">Activities</div>
+  <div class="activity-list" id="activityList"></div>
+</div>
+
+<!-- SCREEN 2: Timer -->
+<div id="timerScreen" class="screen">
+  <div class="header">
+    <button class="back-btn" onclick="goBack()">&#8592;</button>
+    <div>
+      <h1 id="timerActivityName"></h1>
+      <div class="subtitle" id="timerSubjectLabel"></div>
+    </div>
+  </div>
+  <div class="session-info">
+    <span class="subject-name" id="sessionSubject"></span>
+    <span class="session-count" id="loggedCount">0 steps logged</span>
+  </div>
+  <div class="steps-list" id="stepsList"></div>
+  <div class="done-bar">
+    <button class="done-btn" id="doneBtn" onclick="goToConfirm()" disabled>Review Session</button>
+  </div>
+</div>
+
+<!-- SCREEN 3: Confirm -->
+<div id="confirmScreen" class="screen">
+  <div class="header">
+    <button class="back-btn" onclick="showScreen('timerScreen')">&#8592;</button>
+    <div>
+      <h1>Session Summary</h1>
+    </div>
+  </div>
+  <div id="summaryContent"></div>
+  <div class="confirm-actions">
+    <button class="btn-primary" onclick="observeAgain()">Observe Same Activity Again</button>
+    <button class="btn-secondary" onclick="newActivity()">New Activity</button>
+    <button class="btn-export" onclick="exportCSV()">&#8595; Export to CSV (Excel)</button>
+  </div>
+</div>
+
+<script>
+const ACTIVITIES = {
+  "Restocking Shelves": ["Walk to Stockroom", "Collect Trolley", "Pick Items", "Transport to Floor", "Place on Shelves", "Return Trolley", "Pause / Idle"],
+  "Checkout Operation": ["Open Till", "Greet Customer", "Scan Items", "Process Payment", "Bag Items", "Close Till", "Pause / Idle"],
+  "Stock Receiving": ["Check Delivery Note", "Unload Delivery", "Count & Verify Stock", "Label Items", "Move to Storage", "Update Records", "Pause / Idle"],
+  "Cleaning": ["Collect Equipment", "Clear Area", "Mop / Sweep", "Wipe Surfaces", "Return Equipment", "Pause / Idle"],
+  "Customer Service": ["Greet Customer", "Identify Query", "Locate Product / Info", "Resolve Query", "Follow Up", "Pause / Idle"],
+  "Team Briefing": ["Prepare Notes", "Gather Team", "Conduct Briefing", "Assign Tasks", "Confirm Actions", "Pause / Idle"]
+};
+
+let currentActivity = "";
+let currentSubject = "";
+let sessionID = "";
+let activeStep = "";
+let activeStepStart = null;
+let activeTimer = null;
+let stepOccurrences = {};
+let sessionLog = [];
+let allSessions = [];
+
+function stepKey(step) { return step.replace(/[\s\/]+/g, '_'); }
+
+function generateSessionID() {
+  const now = new Date();
+  return now.toISOString().replace(/[-:T.Z]/g, '').slice(0, 14);
+}
+
+function formatTime(ms) {
+  const totalSecs = Math.floor(ms / 1000);
+  const mins = Math.floor(totalSecs / 60).toString().padStart(2, '0');
+  const secs = (totalSecs % 60).toString().padStart(2, '0');
+  const millis = (ms % 1000).toString().padStart(3, '0');
+  return mins + ':' + secs + '.' + millis;
+}
+
+function formatDateTime(date) {
+  return date.toISOString().replace('T', ' ').slice(0, 23);
+}
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+function buildActivityList() {
+  const list = document.getElementById('activityList');
+  list.innerHTML = '';
+  Object.keys(ACTIVITIES).forEach(name => {
+    const steps = ACTIVITIES[name];
+    const card = document.createElement('div');
+    card.className = 'activity-card';
+    card.innerHTML = `
+      <div>
+        <div class="name">${name}</div>
+        <div class="count">${steps.length} steps</div>
+      </div>
+      <div class="arrow">›</div>
+    `;
+    card.onclick = () => startSession(name);
+    list.appendChild(card);
+  });
+}
+
+function startSession(activity) {
+  currentActivity = activity;
+  currentSubject = document.getElementById('subjectInput').value.trim();
+  sessionID = generateSessionID();
+  activeStep = "";
+  activeStepStart = null;
+  stepOccurrences = {};
+  sessionLog = [];
+  if (activeTimer) { clearInterval(activeTimer); activeTimer = null; }
+
+  document.getElementById('timerActivityName').textContent = activity;
+  document.getElementById('timerSubjectLabel').textContent = currentSubject ? 'Observing: ' + currentSubject : '';
+  document.getElementById('sessionSubject').textContent = currentSubject ? currentSubject : '';
+  document.getElementById('doneBtn').disabled = true;
+
+  buildStepsList();
+  showScreen('timerScreen');
+}
+
+function buildStepsList() {
+  const steps = ACTIVITIES[currentActivity];
+  const list = document.getElementById('stepsList');
+  list.innerHTML = '';
+
+  steps.forEach(step => {
+    const row = document.createElement('div');
+    row.className = 'step-row' + (step === 'Pause / Idle' ? ' pause-row' : '');
+    row.id = 'row_' + step.replace(/[\s\/]+/g, '_');
+    const sk = stepKey(step);
+    row.innerHTML = `
+      <div class="step-info">
+        <div class="step-name">${step === 'Pause / Idle' ? '⏸ ' + step : step}</div>
+        <div class="step-meta" id="meta_${sk}"></div>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <button class="step-btn start" id="btn_${sk}" onclick="toggleStep('${step}')">START</button>
+      </div>
+    `;
+    list.appendChild(row);
+  });
+}
+
+function toggleStep(step) {
+  const sk = stepKey(step);
+
+  if (activeStep === step) {
+    stopStep(step, new Date());
+  } else {
+    if (activeStep) {
+      stopStep(activeStep, new Date());
+    }
+    activeStep = step;
+    activeStepStart = new Date();
+
+    const row = document.getElementById('row_' + sk);
+    const btn = document.getElementById('btn_' + sk);
+    const meta = document.getElementById('meta_' + sk);
+    row.className = 'step-row active' + (step === 'Pause / Idle' ? ' pause-row' : '');
+    btn.className = 'step-btn stop';
+    btn.textContent = 'STOP';
+
+    activeTimer = setInterval(() => {
+      const elapsed = new Date() - activeStepStart;
+      meta.textContent = formatTime(elapsed);
+      meta.className = 'step-meta timing';
+    }, 100);
+  }
+}
+
+function stopStep(step, endTime) {
+  const sk = stepKey(step);
+  if (activeTimer) { clearInterval(activeTimer); activeTimer = null; }
+
+  const durationMs = endTime - activeStepStart;
+  const durationMins = durationMs / 1000 / 60;
+  const occurrence = (stepOccurrences[step] || 0) + 1;
+  stepOccurrences[step] = occurrence;
+
+  sessionLog.push({
+    SessionID: sessionID,
+    ActivityName: currentActivity,
+    StepName: step,
+    Occurrence: occurrence,
+    StartTime: formatDateTime(activeStepStart),
+    EndTime: formatDateTime(endTime),
+    DurationMs: durationMs,
+    DurationMinutes: Math.round(durationMins * 10000) / 10000,
+    Subject: currentSubject,
+    Notes: ''
+  });
+
+  const row = document.getElementById('row_' + sk);
+  const btn = document.getElementById('btn_' + sk);
+  const meta = document.getElementById('meta_' + sk);
+
+  row.className = 'step-row done' + (step === 'Pause / Idle' ? ' pause-row' : '');
+  btn.className = 'step-btn repeat';
+  btn.textContent = 'AGAIN';
+  meta.textContent = '✓ ' + occurrence + 'x — last: ' + durationMs + 'ms (' + Math.round(durationMins * 100) / 100 + ' min)';
+  meta.className = 'step-meta logged';
+
+  activeStep = "";
+  activeStepStart = null;
+
+  document.getElementById('loggedCount').textContent = sessionLog.length + ' step' + (sessionLog.length !== 1 ? 's' : '') + ' logged';
+  document.getElementById('doneBtn').disabled = false;
+}
+
+function goBack() {
+  if (activeStep) stopStep(activeStep, new Date());
+  showScreen('selectScreen');
+}
+
+function goToConfirm() {
+  if (activeStep) stopStep(activeStep, new Date());
+  allSessions = allSessions.concat(sessionLog);
+  buildSummary();
+  showScreen('confirmScreen');
+}
+
+function buildSummary() {
+  const totalMs = sessionLog.reduce((sum, r) => sum + r.DurationMs, 0);
+  const totalMins = Math.round(totalMs / 1000 / 60 * 10) / 10;
+  let html = `<div class="summary-card">
+    <div class="summary-header">
+      <div>
+        <div class="title">${currentActivity}</div>
+        ${currentSubject ? '<div style="font-size:12px;color:#999;margin-top:2px">'+currentSubject+'</div>' : ''}
+      </div>
+      <div class="total">${totalMs}ms (${totalMins} min)</div>
+    </div>`;
+
+  if (sessionLog.length === 0) {
+    html += '<div class="empty-note">No steps logged this session.</div>';
+  } else {
+    sessionLog.forEach(r => {
+      html += `<div class="summary-row">
+        <div>
+          <div class="sname">${r.StepName}</div>
+          ${r.Occurrence > 1 ? '<div class="socc">Occurrence ' + r.Occurrence + '</div>' : ''}
+        </div>
+        <div class="sdur">${r.DurationMs}ms</div>
+      </div>`;
+    });
+  }
+
+  html += '</div>';
+  document.getElementById('summaryContent').innerHTML = html;
+}
+
+function observeAgain() {
+  startSession(currentActivity);
+}
+
+function newActivity() {
+  showScreen('selectScreen');
+}
+
+function exportCSV() {
+  if (allSessions.length === 0) {
+    alert('No data to export yet.');
+    return;
+  }
+  const headers = ['SessionID','ActivityName','StepName','Occurrence','StartTime','EndTime','DurationMs','DurationMinutes','Subject','Notes'];
+  const rows = allSessions.map(r => headers.map(h => '"' + (r[h] || '') + '"').join(','));
+  const csv = [headers.join(','), ...rows].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'store_timings_' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+buildActivityList();
+</script>
+</body>
+</html>
